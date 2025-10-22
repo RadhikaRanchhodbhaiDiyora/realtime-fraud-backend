@@ -1,0 +1,61 @@
+services:
+  # 1. Zookeeper: Alternative image
+  zookeeper:
+    image: 'wurstmeister/zookeeper'
+    container_name: zookeeper
+    ports:
+      - '2181:2181'
+
+  # 2. Kafka: Alternative image
+  kafka:
+    image: 'wurstmeister/kafka'
+    container_name: kafka
+    ports:
+      - '9092:9092'
+    environment:
+      - KAFKA_ADVERTISED_HOST_NAME=kafka # Use 'kafka' service name internally
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_CREATE_TOPICS=raw_transactions:3:1 # Auto-create the topic: name:partitions:replicas
+    depends_on:
+      - zookeeper
+
+  # (Keep Redis, Producer, and Processor services exactly as they were)
+  redis:
+    image: 'redis:latest'
+    container_name: redis
+    ports:
+      - '6379:6379'
+
+  # 4. Service 1: Data Producer (Reads CSV, masks PII, and streams data)
+  producer:
+    build:
+      context: ./src/producer # Tells Docker to use the Dockerfile in this folder
+    container_name: producer
+    environment:
+      - KAFKA_BROKER=kafka:9092 # How to find Kafka inside the Docker network
+    volumes:
+      - ./data:/app/data      # Maps your local data folder to the container's /app/data
+      - ./src/producer:/app   # Maps your local code to the container's /app
+    depends_on:
+      - kafka
+    # This runs the ingestion script
+    command: ["python", "producer.py"]
+    restart: on-failure
+
+  # 5. Service 2: Spark Streaming Processor (Performs windowing and aggregation)
+  processor:
+    build:
+      context: ./src/processor
+    container_name: processor
+    environment:
+      - KAFKA_BROKER=kafka:9092
+      - REDIS_HOST=redis        # How to find Redis inside the Docker network
+    volumes:
+      - ./src/processor:/app
+    depends_on:
+      - kafka
+      - redis
+    # The command to start Spark Master, Worker, and run the streaming job
+    command: ["/bin/bash", "-c", "/usr/local/spark/bin/spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.4 --master local[*] processor.py"]
+    restart: on-failure
+    hostname: spark # Gives the container a recognizable name for Spark internal communication
