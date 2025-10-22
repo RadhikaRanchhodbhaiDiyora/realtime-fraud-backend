@@ -4,7 +4,7 @@
 
 **Setup/Running Instructions**:
 1. Download the dataset from here: https://www.kaggle.com/datasets/kartik2112/fraud-detection?select=fraudTrain.csv
-2. Download and open the **realtime-fraud-backend** folder in vs code (phase_2/realtime-fraud-backend or phase_2/realtime-fraud-backend).
+2. Download and open the **realtime-fraud-backend** folder in vs code (phase_2/realtime-fraud-backend or phase_3/realtime-fraud-backend).
 3. create a new folder named **data** inside the folder and place the downloaded dataset fraudTrain.csv inside it.
 4. Install docker desktop and start it.
 5. Open a new terminal in vs code and then run the below command:
